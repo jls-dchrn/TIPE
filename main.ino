@@ -1,40 +1,42 @@
-#include <SPI.h>
-// module pour le bus spi
+    #include <SPI.h>
+// module for the spi bus
 #include <SD.h>
-// module pour la carte SDr
+// module for the SD card
 #include "DHT.h"
-// module pour le capteur
-d'humidité
+// module for the humidity sensor
 #include <Wire.h>
-#include "Adafruit_SGP30.h"
-    // module pour le capteur SGP30
 
-    File mon_csv;
-// initialise une variable de
-type File pour ouvrir mon fichier
-    csv const int pinBranchementCS =
-        4;
-// Le « 4 » indiquant ici que labroche CS (SS) de votre lecteur de carte SD est branché sur la pin D10 de notre Arduino
+#include "Adafruit_SGP30.h"
+// module for the SGP30 sensor (voc)
+
+File my_csv;
+// init a File type variable to open my csv file
+
+csv const int pinBranchementCS = 4;
+// The « 4 » means that the CS (SS) pin of the SD module is links to the D10 pin on your Arduino
+
 #define DHTPIN 2
 /*
-pin où est branché la sortie du capteur d'humidité pin digital renvoie la valeur"HIGH" ou "LOW" qui correspond à
-l'etat de l'échelon envoyé par le capteur le capteur envoie 5 octets (40bits) de donnnes qui correspondent aux valeurs
-entieres puis decimales de l'humidité puis de la température (2x2 octets) et le dernier octet est un checksum
+Le output of the humidity sensor is linked to the 2nd pin.
+The value returned by the sensor are written on 5 bytes, 2 for the integer value ans 2 for the decimal value.
+The last octet is used as a "checksum"
 */
 
 #define DHTTYPE DHT11
-// version du capteur d'humidité, utilisé dans la librairie DHT pour l'identifier DHT dht(DHTPIN, DHTTYPE);
-// creation d'un objet DHT possedant les infos sur moncapteur, permet d'utiliser les methodes de la classe DHT importée
+// version of the humidity sensor in the DHT lib. We identify the sensor with his DHTPIN and his DHTTYPE.
 
 Adafruit_SGP30 sgp;
-// on initialise le nom du module Adafruit_SGP30 comme sgp pour que ce soit plus cours à ecrire
+// initialisation of the Adafruit_SGP30 as sgp to make it quick
 
 // fonction permettant d'obtenir une humidité interne par rapport aux valeurs de
 // températures et d'humidité obtenues par un autre capteur
 
 uint32_t getAbsoluteHumidity(float temperature, float humidity)
 {
-    // formule donnée avec le capteur
+    /*
+        function used to obtain a relative intern humidity with the value of temperature and humidity from the other sensor
+        The formula is given in the  datasheet
+    */
     const float absoluteHumidity = 216.7f * ((humidity / 100.0f) * 6.112f * exp((17.62f * temperature) / (243.12f + temperature)) / (273.15f + temperature));
     // [g/m^3]
     const uint32_t absoluteHumidityScaled = static_cast<uint32_t>(1000.0f * absoluteHumidity); // [mg/m^3]
@@ -44,34 +46,33 @@ uint32_t getAbsoluteHumidity(float temperature, float humidity)
 
 #define Pin_led 7
 
-float dernieres_valeurs[3] = {0.0, 0.0, 0.0};
+float last_values[3] = {0.0, 0.0, 0.0};
 
-int periode = 10;
-// boucle réalisée toutes les 10s (10 000 ms)
+int period = 10;
+// loop after 10s (10 000 ms)
 
-long duree = 0;
-// permet d'ajouter une échelle de temps aux données
+long duration = 0;
+// used to add a time scale in the data
 
 void setup()
 {
     pinMode(Pin_led, OUTPUT);
     Serial.begin(9600);
-    // Ouvre le port de communication avec l'arduino (lecable USB) et permet une communication de 9600 bits/seconde
+    // open the communication port with the arduino (the USB cable) and allows a connexion with a frequency of 9600 bits/sec
 
     if (!SD.begin(pinBranchementCS))
     {
-        Serial.println("problème au niveau du branchement");
+        Serial.println("problem in the connections");
     }
 
-    // recherhe du capteur
+    // searching the sensor
     if (!sgp.begin())
     {
-        Serial.println("On ne trouve pas le capteur :(");
+        Serial.println("Didn't find the sensor :(");
         while (1)
             ;
     }
-
-    // message si le capteur a été trouvé, donne son numéro de série
+    // If the sensor has been found, shows his serial number
     Serial.print("Found SGP30 serial #");
 
     Serial.print(sgp.serialnumber[0], HEX);
@@ -81,37 +82,38 @@ void setup()
     Serial.println(sgp.serialnumber[2], HEX);
 
     dht.begin();
-    // initialise le capteur d'humidité
+    // init the humidity sensor
 
     sgp.setIAQBaseline(0x9768, 0x965A);
-    // enregistre les valeurs de baseline pr le co2 et le tvoc (obtenues en air ext)
+    // download the baseline values of the Co2 and the Tvoc
 }
 
-// initialise un compteur au lancement
+// init the counter when the program start
 int counter = 0;
 
 void loop()
 {
     float humidity = dht.readHumidity();
-    // donne l'humidité en %
-    float temperature = dht.readTemperature();
-    // donne la temperature en degres celsuis
+    // the humidity in %
 
-    Serial.println("temperature:" + String(temperature) + "/humidité :" + String(humidity) + "/durée" + String(duree));
+    float temperature = dht.readTemperature();
+    // the temperature in degree celsuis
+
+    Serial.println("temperature:" + String(temperature) + "/humidity :" + String(humidity) + "/duration" + String(duration));
 
     sgp.setHumidity(getAbsoluteHumidity(temperature, humidity));
 
-    // teste si la mesure du sgp30 marche bien
+    // test the sgp30 sensor
     if (!sgp.IAQmeasure())
     {
         Serial.println("Measurement failed");
         return;
     }
 
-    // obtient la concentration en TVOC
+    // the concentration in TVOC
     float concentration = sgp.TVOC;
 
-    // affiche les valeurs dans le terminal
+    // print the values in shell
     Serial.print("TVOC ");
     Serial.print(concentration);
     Serial.print(" ppb\t");
@@ -120,10 +122,10 @@ void loop()
     Serial.print(sgp.eCO2);
     Serial.println(" ppm");
 
-    // création d'une chaine vide contenant le message à enregistrer
+    // creation of a empty string
     String message = "";
 
-    // si le fichier csv n'existe pas encore, créer une entête
+    // if the csv file doesn't exist, create a header
     File test = SD.open("fichier.csv", FILE_READ);
 
     if (!test)
@@ -132,52 +134,58 @@ void loop()
     }
     test.close();
 
-    // ouverture du fichier (ou création s'il n'existe pas)
-    mon_csv = SD.open("fichier.csv", FILE_WRITE);
+    // open the file (or create it if it doesn't exist)
+    my_csv = SD.open("fichier.csv", FILE_WRITE);
 
-    // Si le fichier ne peut être ouvert ou créé, afficher un message d'erreur
-    if (!mon_csv)
+    // if the file can't be opened or created, raised an error
+    if (!my_csv)
     {
-        Serial.println("Problème d'ouverture du fichier.");
+        Serial.println("Can't open or create the file");
     }
 
-    // Si il y a une entête, l'ajoute au fichier csv
+    // if we have created a header, add it to the csv file
     if (message != "")
     {
-        mon_csv.println(message);
+        my_csv.println(message);
         message = "";
     }
 
-    // enregistre les valeurs des concentrations de gaz dans chaque colonne grâce au séparateur ";"
-    message += (String(duree) + ";" + String(concentration) + ";" + String(humidity) + ";" + String(temperature));
-    mon_csv.println(message);
+    // download the values in the csv file, columns are separated by ";"
+    message += (String(duration) + ";" + String(concentration) + ";" + String(humidity) + ";" + String(temperature));
+    my_csv.println(message);
 
-    // stock la valeur de concentration pour les 30 prochaines secondes
-    dernieres_valeurs[counter] = concentration;
+    // keep the concentration values from the last 30 sec
+    last_values[counter] = concentration;
 
-    // nettoie les valeurs enregistrées sur la memoire vive dans la variable mon_csv
-    mon_csv.flush();
+    // clear the values of my_csv in the RAM
+    my_csv.flush();
 
-    // ferme le fichier
-    mon_csv.close();
+    // close the file
+    my_csv.close();
 
-    if ((dernieres_valeurs[0] + dernieres_valeurs[1] + dernieres_valeurs[2]) / 3 > 200)
+    /*
+        we consider that if the average value of Tvoc from the 30 last seconds is greater than 200ppm,
+        it is necessary to ventilate and the led turns on
+    */
+
+    if ((last_values[0] + last_values[1] + last_values[2]) / 3 > 200)
     {
         digitalWrite(Pin_led, HIGH);
     }
     else
     {
+        // turns of the led
         digitalWrite(Pin_led, LOW);
     }
 
-    // incrémente le compteur
+    // increments the counter
     counter++;
     if (counter == 3)
     {
         counter = 0;
     }
 
-    delay(periode * 1000);
-    duree += periode;
-    // duree en secondes
+    delay(period * 1000);
+    duration += period;
+    // duration in sec
 }
