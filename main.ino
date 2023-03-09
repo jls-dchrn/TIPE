@@ -1,4 +1,4 @@
-    #include <SPI.h>
+#include <SPI.h>
 // module for the spi bus
 #include <SD.h>
 // module for the SD card
@@ -17,7 +17,7 @@ csv const int pinBranchementCS = 4;
 
 #define DHTPIN 2
 /*
-Le output of the humidity sensor is linked to the 2nd pin.
+The output of the humidity sensor is linked to the 2nd pin.
 The value returned by the sensor are written on 5 bytes, 2 for the integer value ans 2 for the decimal value.
 The last octet is used as a "checksum"
 */
@@ -28,9 +28,7 @@ The last octet is used as a "checksum"
 Adafruit_SGP30 sgp;
 // initialisation of the Adafruit_SGP30 as sgp to make it quick
 
-// fonction permettant d'obtenir une humidité interne par rapport aux valeurs de
-// températures et d'humidité obtenues par un autre capteur
-
+// fonction that return the internal humidity, using the temperature and humidity values from the other sensor
 uint32_t getAbsoluteHumidity(float temperature, float humidity)
 {
     /*
@@ -122,7 +120,7 @@ void loop()
     Serial.print(sgp.eCO2);
     Serial.println(" ppm");
 
-    // creation of a empty string
+    // creation of an empty string
     String message = "";
 
     // if the csv file doesn't exist, create a header
