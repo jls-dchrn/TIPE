@@ -83,7 +83,7 @@ void setup()
     // init the humidity sensor
 
     sgp.setIAQBaseline(0x9768, 0x965A);
-    // download the baseline values of the Co2 and the Tvoc
+    // download the baseline values of the Co2 and the Tvoc, you have to put your own values
 }
 
 // init the counter when the program start
